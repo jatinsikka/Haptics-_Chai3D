@@ -547,10 +547,11 @@ void updateHaptics(void)
         cVector3d wallmultiplier(0.0, 1.0, 0.0);
         cVector3d wallforce(0.0, 0.0, 0.0);
 
-        double amplitude = ; // Amplitude of the sinusoid
-        double frequency = ; // Frequency of the sinusoid
-		double vin = ; // Velocity of the sinusoid
-
+        double amplitude = 10; // Amplitude of the sinusoid
+        double amplitude_scale = 10.0;  // do we need this?
+        double frequency = 20; // Frequency of the sinusoid
+		double Vin = linearVelocity.y(); // Velocity of the sinusoid
+        double d = 50; // time to decay 
         double time = 0.0;
 
         bool CrossWall = (position.y() < wallPosition.y());  //bool wasn't working in the if s
@@ -559,15 +560,23 @@ void updateHaptics(void)
         
         //////Sinusoid
 
-
-
+        //not in contact, reset timer, set force to 0
+        if (CrossWall) {
+            time = 0;
+            force = 0;
+        }
+        else {
+            time = time + 0.001;
+            force = force + amplitude * sin(2 * PI * frequency * time) * vin;
+        }
         //////
 
-
-        // AM I IN THE WALL?
-        // IF IM IN THE WALL AND HAVE TURNED WALL ON
+        // IF IM IN THE WALL AND HAVE TURNED WALL ON, feel the sinusoid force and wall force
         if (useWall && CrossWall)
-        {
+        { 
+            if (time == 0) { //first moment of contact: store impact speed
+                Vin = -Decay_Sine_Amplitude_Scale * Vin;
+            }
             // compute linear force
             double Kp = 2000; // [N/m]
             cVector3d wallfield = Kp * (wallPosition - position);
@@ -575,11 +584,12 @@ void updateHaptics(void)
             wallmultiplier.mulElementr(wallfield, wallforce);
             force.add(wallforce);
 			time = time + 0.001;
+            force = force + amplitude * exp(log(0.01) * time / d) * sin(2 * PI * frequency * time) * vin;
 
 		}
-		else {
+		else (useWall && !CrossWall){ //if not in wall, reset timer, set force to 0
             time = 0;
-			
+            force = 0;
 		}
 
         // apply damping term
